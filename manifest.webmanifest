@@ -1,0 +1,32 @@
+{
+  "name": "Diário das Emoções",
+  "short_name": "Emoções",
+  "description": "Registro diário de sentimentos, com roda de emoções ampliada e backup local.",
+  "lang": "pt-BR",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF3EC",
+  "theme_color": "#FBF3EC",
+  "icons": [
+    {
+      "src": "./icons/icone-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icone-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icone-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#FBF3EC">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/icone-192.png">
+<link rel="apple-touch-icon" href="./icons/icone-192.png">
+<title>Diário das Emoções</title>
+<style>
+  /* Sem fontes externas: tudo funciona offline, sem internet. */
+  :root{
+    --bg:#FBF3EC; --bg-soft:#F3E6DA; --line:#E7D6C6;
+    --ink:#3D1F26; --ink-soft:#7A5C61; --wine:#8C2F39; --wine-soft:#B96A63;
+    --serif: Georgia, 'Times New Roman', serif;
+    --ui: -apple-system, 'Roboto', system-ui, sans-serif;
+    --mono: 'Roboto Mono', ui-monospace, monospace;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--ui);
+    min-height:100vh; padding:24px 16px calc(40px + env(safe-area-inset-bottom));
+    display:flex; justify-content:center;
+  }
+  .app{width:100%; max-width:480px;}
+
+  .eyebrow{font-family:var(--mono); font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--wine-soft); margin-bottom:6px;}
+  h1{font-family:var(--serif); font-style:italic; font-size:29px; margin:0 0 4px; line-height:1.1; font-weight:normal;}
+  .sub{font-size:13.5px; color:var(--ink-soft); margin:0;}
+
+  .status{
+    display:flex; align-items:center; gap:8px; justify-content:space-between;
+    font-family:var(--mono); font-size:10px; color:var(--ink-soft);
+    background:var(--bg-soft); border-radius:8px; padding:8px 10px; margin-top:14px;
+  }
+  .status.warn{color:#8a4a1a; background:#F7EAD9;}
+  .status.err{color:#A8402F; background:#F7E4E0;}
+
+  .datebar{display:flex; align-items:center; justify-content:space-between; margin:20px 0 14px; padding:9px 4px; border-top:1px solid var(--line); border-bottom:1px solid var(--line);}
+  .datebar button{background:none; border:none; color:var(--wine); font-size:20px; padding:4px 12px; cursor:pointer; line-height:1;}
+  .datebar button:disabled{opacity:.25;}
+  .datelabel{text-align:center; flex:1; position:relative;}
+  .datelabel .day{font-family:var(--serif); font-size:15.5px; text-transform:capitalize;}
+  .datelabel .pill{font-family:var(--mono); font-size:9.5px; color:var(--wine); letter-spacing:.05em;}
+  #jump-date{position:absolute; opacity:0; width:1px; height:1px; border:none;}
+
+  .periods{display:flex; gap:8px; margin-bottom:18px;}
+  .ptab{flex:1; padding:10px 4px 11px; text-align:center; font-size:13.5px; color:var(--ink-soft); background:var(--bg-soft); border:1px solid var(--line); border-radius:10px 10px 4px 4px; cursor:pointer;}
+  .ptab.active{color:var(--ink); background:#fff; border-color:var(--wine-soft); box-shadow:0 2px 0 var(--wine-soft);}
+  .ptab .dot{display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--wine); margin-left:5px; opacity:0;}
+  .ptab.filled .dot{opacity:1;}
+
+  .card{background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px 16px 20px; margin-bottom:20px;}
+  .label{font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-soft); margin:0 0 10px;}
+  .lrow{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;}
+  .lrow .count{font-family:var(--mono); font-size:10px; color:var(--wine);}
+
+  .search{position:relative; margin-bottom:12px;}
+  .search input{width:100%; padding:10px 32px 10px 12px; border:1px solid var(--line); border-radius:8px; font-family:var(--ui); font-size:13.5px; color:var(--ink); background:var(--bg-soft);}
+  .search input:focus{outline:1.5px solid var(--wine-soft); background:#fff;}
+  .search .clr{position:absolute; right:6px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--ink-soft); font-size:15px; cursor:pointer; display:none; padding:4px 8px;}
+  .search.on .clr{display:block;}
+
+  .strip{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;}
+  .selchip{display:flex; align-items:center; gap:6px; background:var(--pc,var(--wine)); color:#fff; font-size:12.5px; padding:5px 6px 5px 11px; border-radius:999px;}
+  .selchip button{background:rgba(255,255,255,.28); border:none; color:#fff; width:17px; height:17px; border-radius:50%; font-size:11px; line-height:1; cursor:pointer;}
+  .nosel{font-size:12.5px; color:var(--ink-soft); font-style:italic; margin-bottom:12px;}
+
+  .cats{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px;}
+  .cat{font-size:13px; padding:8px 12px; border-radius:999px; border:1.5px solid var(--line); background:#fff; color:var(--ink); cursor:pointer; display:flex; align-items:center; gap:6px;}
+  .cat .sw{width:9px; height:9px; border-radius:50%;}
+  .cat.open{background:var(--cbg); border-color:var(--cc); font-weight:600;}
+  .cat .badge{background:var(--cc); color:#fff; font-family:var(--mono); font-size:9.5px; min-width:15px; height:15px; border-radius:50%; display:flex; align-items:center; justify-content:center; padding:0 3px;}
+
+  .subwrap{min-height:4px; margin-bottom:16px;}
+  .chips{display:flex; flex-wrap:wrap; gap:7px;}
+  .chip{font-size:12.5px; padding:7px 11px; border-radius:8px; background:var(--bg-soft); border:1px solid transparent; color:var(--ink-soft); cursor:pointer; display:flex; align-items:center; gap:5px;}
+  .chip .d{width:7px; height:7px; border-radius:50%;}
+  .chip.on{background:var(--cc); color:#fff; font-weight:600;}
+  .hint{font-size:12.5px; color:var(--ink-soft); font-style:italic;}
+
+  .ihead{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;}
+  .inum{font-family:var(--mono); font-size:25px; color:var(--wine);}
+  .stones{display:flex; gap:5px; margin-bottom:6px;}
+  .stone{flex:1; height:28px; border-radius:40% 60% 55% 45% / 55% 45% 60% 40%; background:var(--bg-soft); border:1px solid var(--line); cursor:pointer;}
+  .stone:active{transform:scale(.9);}
+  .slabels{display:flex; justify-content:space-between; font-size:11px; color:var(--ink-soft); margin-bottom:16px;}
+
+  textarea{width:100%; min-height:70px; resize:vertical; font-family:var(--ui); font-size:14px; color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:10px 12px; margin-bottom:14px; background:#fff;}
+  textarea::placeholder{color:#b3a19c;}
+
+  .save{width:100%; padding:14px; border:none; border-radius:999px; background:var(--wine); color:#fff; font-family:var(--serif); font-size:15.5px; cursor:pointer;}
+  .save:active{transform:scale(.98);}
+  .err{color:#A8402F; font-size:12.5px; margin:-6px 0 12px; display:none;}
+  .toast{text-align:center; font-family:var(--mono); font-size:11.5px; color:var(--wine); height:16px; margin-top:10px; opacity:0; transition:opacity .3s;}
+  .toast.show{opacity:1;}
+
+  .stats{display:flex; gap:9px; margin-bottom:22px;}
+  .stat{flex:1; background:var(--bg-soft); border-radius:10px; padding:12px 6px; text-align:center;}
+  .stat .n{font-family:var(--mono); font-size:19px; color:var(--wine);}
+  .stat .t{font-size:10.5px; color:var(--ink-soft); margin-top:2px;}
+
+  h2{font-family:var(--serif); font-style:italic; font-size:18px; margin:0 0 12px; font-weight:normal;}
+  .tl{border-left:1.5px solid var(--line); padding-left:16px; margin-left:4px; margin-bottom:24px;}
+  .tli{position:relative; padding-bottom:15px;}
+  .tli::before{content:''; position:absolute; left:-20.5px; top:4px; width:9px; height:9px; border-radius:50%; background:var(--dc,var(--wine));}
+  .tlt{font-size:13.5px;}
+  .tlm{font-family:var(--mono); font-size:10px; color:var(--ink-soft);}
+  .tln{font-size:12.5px; color:var(--ink-soft); font-style:italic; margin-top:2px;}
+  .empty{font-size:13px; color:var(--ink-soft); font-style:italic;}
+
+  .tools{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;}
+  .tool{background:none; border:1px dashed var(--wine-soft); color:var(--wine); font-family:var(--mono); font-size:10.5px; padding:11px 8px; border-radius:8px; cursor:pointer; text-align:center;}
+  .tool.solid{background:var(--wine); color:#fff; border-style:solid;}
+  .panel{display:none; margin-bottom:16px;}
+  .panel.open{display:block;}
+  .panel textarea{font-family:var(--mono); font-size:11px; min-height:150px; line-height:1.5;}
+  .foot{font-size:11px; color:var(--ink-soft); text-align:center; margin-top:22px; line-height:1.6;}
+
+  .install{
+    display:none; align-items:center; gap:10px; justify-content:space-between;
+    background:var(--wine); color:#fff; border-radius:10px; padding:12px 14px; margin-top:14px;
+  }
+  .install.show{display:flex;}
+  .install span{font-size:12.5px; line-height:1.4;}
+  .install button{background:#fff; color:var(--wine); border:none; border-radius:999px; font-family:var(--ui); font-size:12px; font-weight:600; padding:8px 14px; cursor:pointer; white-space:nowrap;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="eyebrow">registro pessoal · offline</div>
+    <h1>como você está?</h1>
+    <p class="sub">pode ser mais de um sentimento ao mesmo tempo.</p>
+    <div class="status" id="status"><span id="status-text">verificando armazenamento…</span></div>
+    <div class="install" id="install">
+      <span>instale o diário na tela inicial para abrir com um toque</span>
+      <button id="install-btn">instalar</button>
+    </div>
+  </header>
+
+  <div class="datebar">
+    <button id="prev" aria-label="dia anterior">‹</button>
+    <div class="datelabel">
+      <div class="day" id="date-label">—</div>
+      <div class="pill" id="today-pill"></div>
+      <input type="date" id="jump-date">
+    </div>
+    <button id="next" aria-label="dia seguinte">›</button>
+  </div>
+
+  <div class="periods" id="periods"></div>
+
+  <div class="card">
+    <div class="lrow">
+      <p class="label" style="margin:0">o que você está sentindo?</p>
+      <span class="count" id="selcount"></span>
+    </div>
+
+    <div class="search" id="search">
+      <input type="text" id="q" placeholder="buscar palavra (culpa, vazio, orgulho…)">
+      <button class="clr" id="qclr">✕</button>
+    </div>
+
+    <div class="strip" id="strip"></div>
+    <div class="cats" id="cats"></div>
+    <div class="subwrap" id="subwrap"></div>
+
+    <div class="ihead">
+      <p class="label" style="margin:0">intensidade geral</p>
+      <span class="inum" id="inum">–</span>
+    </div>
+    <div class="stones" id="stones"></div>
+    <div class="slabels"><span>leve</span><span>muito intensa</span></div>
+
+    <textarea id="note" placeholder="o que aconteceu? (opcional)" maxlength="400"></textarea>
+    <p class="err" id="err">escolha ao menos um sentimento e um nível.</p>
+    <button class="save" id="save">registrar sentimento</button>
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <h2>últimos registros</h2>
+  <div class="tl" id="tl"></div>
+
+  <div class="tools">
+    <button class="tool solid" id="btn-summary">resumo p/ sessão</button>
+    <button class="tool" id="btn-share">compartilhar resumo</button>
+    <button class="tool" id="btn-backup">salvar backup</button>
+    <button class="tool" id="btn-restore">restaurar backup</button>
+  </div>
+  <input type="file" id="file-input" accept=".json,application/json" style="display:none">
+
+  <div class="panel" id="panel-summary">
+    <textarea id="summary-text" readonly></textarea>
+    <button class="tool solid" id="btn-copy" style="width:100%">copiar texto</button>
+  </div>
+
+  <p class="foot">
+    tudo fica salvo apenas neste aparelho — nada é enviado para lugar nenhum.<br>
+    faça um backup de vez em quando: é o que protege seus registros se você limpar os dados do navegador.
+  </p>
+</div>
+
+<script>
+/* ============================================================
+   DIÁRIO DAS EMOÇÕES — arquivo único, offline, sem dependências.
+   Os dados ficam no localStorage do navegador deste aparelho.
+   ============================================================ */
+
+const EMOTIONS = {
+  alegria:     { label:'Alegria',     color:'#C9922E', words:['Feliz','Contente','Animado','Grato','Orgulhoso','Encantado','Divertido','Eufórico','Satisfeito','Entusiasmado','Radiante','Aliviado','Leve','Realizado'] },
+  confianca:   { label:'Confiança',   color:'#3F7A6B', words:['Confiante','Seguro','Aceito','Respeitado','Amado','Acolhido','Tranquilo','Apoiado','Valorizado','Pertencente','Sereno','Em paz','Capaz','Otimista'] },
+  surpresa:    { label:'Surpresa',    color:'#C15B6E', words:['Surpreso','Espantado','Chocado','Perplexo','Desorientado','Maravilhado','Incrédulo','Pego de surpresa'] },
+  expectativa: { label:'Expectativa', color:'#A9862E', words:['Curioso','Na expectativa','Impaciente','Interessado','Cauteloso','Apreensivo','Inquieto','Indeciso','Esperançoso','Antecipando'] },
+  medo:        { label:'Medo',        color:'#8C7B9B', words:['Ansioso','Inseguro','Preocupado','Assustado','Sobrecarregado','Incapaz','Isolado','Nervoso','Vulnerável','Apavorado','Tenso','Paralisado','Com medo de falhar'] },
+  tristeza:    { label:'Tristeza',    color:'#3F5578', words:['Magoado','Sozinho','Desanimado','Vazio','Desesperado','Melancólico','Decepcionado','Nostálgico','Arrependido','Derrotado','Saudoso','Abatido','Sem sentido'] },
+  nojo:        { label:'Nojo',        color:'#5F6B41', words:['Enojado','Incomodado','Repugnado','Enjoado','Desprezado','Intolerante','Avesso','Contrariado'] },
+  vergonha:    { label:'Vergonha',    color:'#9C5B3C', words:['Envergonhado','Constrangido','Humilhado','Exposto','Inadequado','Culpado','Inferior','Insignificante','Julgado','Rejeitado'] },
+  raiva:       { label:'Raiva',       color:'#A8402F', words:['Frustrado','Irritado','Indignado','Ressentido','Traído','Furioso','Revoltado','Explosivo','Amargurado','Ofendido','Impotente'] },
+  desconforto: { label:'Desconforto', color:'#6B6459', words:['Cansado','Estressado','Entediado','Sonolento','Zonzo','Dolorido','Desconectado','Confuso','Esgotado','Anestesiado','Sem energia','Neutro'] }
+};
+
+const PERIODS = [['manha','Manhã'],['tarde','Tarde'],['noite','Noite']];
+const KEY = 'diario-emocoes-v2';
+
+let data = {};
+let currentDate = todayStr();
+let currentPeriod = defaultPeriod();
+let selected = [];
+let intensity = 0;
+let openCat = null;
+let query = '';
+
+function todayStr(d = new Date()){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function defaultPeriod(){
+  const h = new Date().getHours();
+  return h < 12 ? 'manha' : (h < 18 ? 'tarde' : 'noite');
+}
+function norm(s){ return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''); }
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------- Armazenamento local ---------- */
+let storageOk = true;
+
+function setStatus(kind, text){
+  const el = document.getElementById('status');
+  el.className = 'status' + (kind ? ' ' + kind : '');
+  document.getElementById('status-text').textContent = text;
+}
+
+function checkStorage(){
+  // Testa se o navegador realmente grava neste contexto (alguns modos anônimos bloqueiam).
+  try{
+    localStorage.setItem('__teste__','1');
+    localStorage.removeItem('__teste__');
+    return true;
+  }catch(e){ return false; }
+}
+
+function loadData(){
+  storageOk = checkStorage();
+  if(!storageOk){
+    data = {};
+    setStatus('err','este navegador não está gravando dados — use o backup para não perder registros');
+    return;
+  }
+  try{
+    const raw = localStorage.getItem(KEY);
+    data = raw ? JSON.parse(raw) : {};
+  }catch(e){ data = {}; }
+  const n = Object.keys(data).length;
+  setStatus('', n ? `salvo neste aparelho · ${n} dia(s) registrado(s)` : 'salvo neste aparelho · nenhum registro ainda');
+}
+
+function saveData(){
+  if(!storageOk) return false;
+  try{
+    localStorage.setItem(KEY, JSON.stringify(data));
+    return true;
+  }catch(e){
+    setStatus('err','falha ao gravar (memória cheia?) — salve um backup agora');
+    return false;
+  }
+}
+
+/* ---------- Seleção ---------- */
+function isSel(cat,word){ return selected.some(f=>f.cat===cat && f.word===word); }
+function toggle(cat,word){
+  const i = selected.findIndex(f=>f.cat===cat && f.word===word);
+  if(i>=0) selected.splice(i,1); else selected.push({cat,word});
+  renderStrip(); renderCats(); renderSubs(); renderStones();
+}
+
+/* ---------- Renderização ---------- */
+function renderDate(){
+  const d = new Date(currentDate+'T12:00:00');
+  document.getElementById('date-label').textContent = d.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});
+  document.getElementById('today-pill').textContent = currentDate===todayStr() ? 'hoje' : '';
+  document.getElementById('jump-date').value = currentDate;
+  document.getElementById('next').disabled = currentDate >= todayStr();
+}
+
+function renderPeriods(){
+  const w = document.getElementById('periods');
+  w.innerHTML = '';
+  PERIODS.forEach(([k,label])=>{
+    const filled = !!(data[currentDate] && data[currentDate][k]);
+    const el = document.createElement('div');
+    el.className = 'ptab' + (k===currentPeriod?' active':'') + (filled?' filled':'');
+    el.innerHTML = `${label}<span class="dot"></span>`;
+    el.onclick = ()=>{ currentPeriod = k; loadForm(); renderPeriods(); };
+    w.appendChild(el);
+  });
+}
+
+function renderStrip(){
+  const w = document.getElementById('strip');
+  document.getElementById('selcount').textContent = selected.length ? `${selected.length} escolhido${selected.length>1?'s':''}` : '';
+  if(!selected.length){ w.innerHTML = '<div class="nosel">nenhum sentimento escolhido ainda</div>'; return; }
+  w.innerHTML = '';
+  selected.forEach(f=>{
+    const c = document.createElement('div');
+    c.className = 'selchip';
+    c.style.setProperty('--pc', EMOTIONS[f.cat].color);
+    c.innerHTML = `${esc(f.word)}<button aria-label="remover">✕</button>`;
+    c.querySelector('button').onclick = ()=>toggle(f.cat,f.word);
+    w.appendChild(c);
+  });
+}
+
+function renderCats(){
+  const w = document.getElementById('cats');
+  w.innerHTML = '';
+  Object.entries(EMOTIONS).forEach(([k,em])=>{
+    const n = selected.filter(f=>f.cat===k).length;
+    const b = document.createElement('div');
+    b.className = 'cat' + (openCat===k?' open':'');
+    b.style.setProperty('--cc', em.color);
+    b.style.setProperty('--cbg', em.color+'1a');
+    b.innerHTML = `<span class="sw" style="background:${em.color}"></span>${em.label}` + (n?`<span class="badge">${n}</span>`:'');
+    b.onclick = ()=>{
+      query=''; document.getElementById('q').value=''; document.getElementById('search').classList.remove('on');
+      openCat = (openCat===k ? null : k);
+      renderCats(); renderSubs();
+    };
+    w.appendChild(b);
+  });
+}
+
+function renderSubs(){
+  const w = document.getElementById('subwrap');
+  let list = [];
+
+  if(query.trim().length >= 2){
+    const q = norm(query.trim());
+    Object.entries(EMOTIONS).forEach(([k,em])=>{
+      em.words.forEach(word=>{ if(norm(word).includes(q)) list.push({cat:k,word,color:em.color}); });
+    });
+    if(!list.length){ w.innerHTML = '<span class="hint">nada encontrado — descreva nas notas abaixo, é igualmente válido.</span>'; return; }
+  } else if(openCat){
+    EMOTIONS[openCat].words.forEach(word=>list.push({cat:openCat,word,color:EMOTIONS[openCat].color}));
+  } else {
+    w.innerHTML = '<span class="hint">toque numa família acima ou busque uma palavra — pode marcar quantas quiser.</span>';
+    return;
+  }
+
+  const row = document.createElement('div');
+  row.className = 'chips';
+  list.forEach(m=>{
+    const on = isSel(m.cat,m.word);
+    const c = document.createElement('div');
+    c.className = 'chip' + (on?' on':'');
+    c.style.setProperty('--cc', m.color);
+    c.innerHTML = `<span class="d" style="background:${on?'#fff':m.color}"></span>${esc(m.word)}`;
+    c.onclick = ()=>toggle(m.cat,m.word);
+    row.appendChild(c);
+  });
+  w.innerHTML = '';
+  w.appendChild(row);
+}
+
+function renderStones(){
+  const w = document.getElementById('stones');
+  w.innerHTML = '';
+  const colors = [...new Set(selected.map(f=>EMOTIONS[f.cat].color))];
+  for(let i=1;i<=10;i++){
+    const s = document.createElement('div');
+    s.className = 'stone';
+    if(i<=intensity) s.style.background = colors.length ? colors[(i-1)%colors.length] : 'var(--wine)';
+    s.onclick = ()=>{ intensity = i; renderStones(); };
+    w.appendChild(s);
+  }
+  document.getElementById('inum').textContent = intensity || '–';
+}
+
+/* ---------- Formulário ---------- */
+function loadForm(){
+  const e = data[currentDate] && data[currentDate][currentPeriod];
+  document.getElementById('err').style.display = 'none';
+  query=''; document.getElementById('q').value=''; document.getElementById('search').classList.remove('on');
+  if(e){
+    selected = (e.feelings||[]).slice();
+    intensity = e.intensity || 0;
+    openCat = selected.length ? selected[0].cat : null;
+    document.getElementById('note').value = e.note || '';
+  } else {
+    selected = []; intensity = 0; openCat = null;
+    document.getElementById('note').value = '';
+  }
+  renderStrip(); renderCats(); renderSubs(); renderStones();
+}
+
+function handleSave(){
+  if(!selected.length || !intensity){
+    document.getElementById('err').style.display = 'block';
+    return;
+  }
+  document.getElementById('err').style.display = 'none';
+  if(!data[currentDate]) data[currentDate] = {};
+  data[currentDate][currentPeriod] = {
+    feelings: selected.slice(),
+    intensity,
+    note: document.getElementById('note').value.trim(),
+    ts: new Date().toISOString()
+  };
+  const ok = saveData();
+  const t = document.getElementById('toast');
+  t.textContent = ok ? 'registrado ✓' : 'não foi possível salvar neste navegador';
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+  if(ok) setStatus('', `salvo neste aparelho · ${Object.keys(data).length} dia(s) registrado(s)`);
+  renderPeriods(); renderStats(); renderTL();
+}
+
+/* ---------- Dados agregados ---------- */
+function flat(){
+  const out = [];
+  Object.keys(data).sort().reverse().forEach(date=>{
+    PERIODS.forEach(([k,label])=>{
+      const e = data[date][k];
+      if(e) out.push({date, periodLabel:label, feelings:e.feelings||[], intensity:e.intensity, note:e.note});
+    });
+  });
+  return out;
+}
+function streak(){
+  let n = 0, d = new Date();
+  if(!data[todayStr(d)]) d.setDate(d.getDate()-1);
+  while(data[todayStr(d)] && Object.keys(data[todayStr(d)]).length){ n++; d.setDate(d.getDate()-1); }
+  return n;
+}
+function renderStats(){
+  const f = flat();
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate()-7);
+  const freq = {};
+  f.filter(e=>new Date(e.date+'T12:00:00')>=weekAgo).forEach(e=>e.feelings.forEach(x=>freq[x.cat]=(freq[x.cat]||0)+1));
+  const top = Object.entries(freq).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('stats').innerHTML = `
+    <div class="stat"><div class="n">${streak()}</div><div class="t">dias seguidos</div></div>
+    <div class="stat"><div class="n">${f.length}</div><div class="t">registros</div></div>
+    <div class="stat"><div class="n" style="font-size:14px">${top?EMOTIONS[top[0]].label:'—'}</div><div class="t">mais comum na semana</div></div>`;
+}
+function renderTL(){
+  const w = document.getElementById('tl');
+  const f = flat().slice(0,15);
+  if(!f.length){ w.innerHTML = '<p class="empty">nenhum registro ainda — comece pelo card acima.</p>'; return; }
+  w.innerHTML = f.map(e=>{
+    const d = new Date(e.date+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});
+    const color = e.feelings.length ? EMOTIONS[e.feelings[0].cat].color : 'var(--wine)';
+    return `<div class="tli" style="--dc:${color}">
+      <div class="tlt"><b>${esc(e.feelings.map(x=>x.word).join(' + '))}</b> · nível ${e.intensity}</div>
+      <div class="tlm">${d} · ${e.periodLabel}</div>
+      ${e.note?`<div class="tln">"${esc(e.note)}"</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+/* ---------- Resumo, backup e restauração ---------- */
+function buildSummary(days = 15){
+  const cut = new Date(); cut.setDate(cut.getDate()-days);
+  const f = flat().filter(e=>new Date(e.date+'T12:00:00')>=cut).reverse();
+  if(!f.length) return `Sem registros nos últimos ${days} dias.`;
+  const byDate = {};
+  f.forEach(e=>{ (byDate[e.date] = byDate[e.date]||[]).push(e); });
+  const out = [`DIÁRIO DAS EMOÇÕES — últimos ${days} dias`, ''];
+  Object.keys(byDate).sort().forEach(date=>{
+    out.push(new Date(date+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit'}) + ':');
+    byDate[date].forEach(e=>{
+      out.push(`  ${e.periodLabel}: ${e.feelings.map(x=>x.word).join(' + ')} (${e.intensity}/10)${e.note?' — '+e.note:''}`);
+    });
+    out.push('');
+  });
+  return out.join('\n');
+}
+
+function download(filename, content, type){
+  const blob = new Blob([content], {type});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+function doBackup(){
+  const nome = `diario-emocoes-backup-${todayStr()}.json`;
+  download(nome, JSON.stringify(data, null, 2), 'application/json');
+  setStatus('', `backup gerado: ${nome}`);
+}
+
+function doRestore(file){
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const incoming = JSON.parse(r.result);
+      if(typeof incoming !== 'object' || Array.isArray(incoming)) throw new Error('formato');
+      // Mescla: registros existentes são preservados, os do backup preenchem o que faltar.
+      Object.keys(incoming).forEach(date=>{
+        data[date] = Object.assign({}, incoming[date], data[date] || {});
+      });
+      saveData();
+      renderPeriods(); loadForm(); renderStats(); renderTL();
+      setStatus('', `backup restaurado · ${Object.keys(data).length} dia(s) registrado(s)`);
+    }catch(e){
+      setStatus('err','arquivo inválido — escolha um backup .json gerado por este diário');
+    }
+  };
+  r.readAsText(file);
+}
+
+/* ---------- Navegação ---------- */
+function changeDate(delta){
+  const d = new Date(currentDate+'T12:00:00');
+  d.setDate(d.getDate()+delta);
+  const ns = todayStr(d);
+  if(ns > todayStr()) return;
+  currentDate = ns;
+  renderDate(); renderPeriods(); loadForm();
+}
+
+/* ---------- Início ---------- */
+loadData();
+renderDate(); renderPeriods(); loadForm(); renderStats(); renderTL();
+
+document.getElementById('prev').onclick = ()=>changeDate(-1);
+document.getElementById('next').onclick = ()=>changeDate(1);
+document.getElementById('date-label').onclick = ()=>{
+  const el = document.getElementById('jump-date');
+  el.showPicker ? el.showPicker() : el.focus();
+};
+document.getElementById('jump-date').onchange = e=>{
+  if(e.target.value && e.target.value <= todayStr()){ currentDate = e.target.value; renderDate(); renderPeriods(); loadForm(); }
+};
+document.getElementById('save').onclick = handleSave;
+
+document.getElementById('q').oninput = e=>{
+  query = e.target.value;
+  document.getElementById('search').classList.toggle('on', query.length>0);
+  renderSubs();
+};
+document.getElementById('qclr').onclick = ()=>{
+  query=''; document.getElementById('q').value=''; document.getElementById('search').classList.remove('on'); renderSubs();
+};
+
+const panel = document.getElementById('panel-summary');
+document.getElementById('btn-summary').onclick = ()=>{
+  panel.classList.toggle('open');
+  if(panel.classList.contains('open')) document.getElementById('summary-text').value = buildSummary(15);
+};
+document.getElementById('btn-copy').onclick = async ()=>{
+  const t = document.getElementById('summary-text');
+  t.select();
+  const btn = document.getElementById('btn-copy');
+  try{ await navigator.clipboard.writeText(t.value); btn.textContent = 'copiado ✓'; }
+  catch(e){ document.execCommand('copy'); btn.textContent = 'copiado ✓'; }
+  setTimeout(()=>btn.textContent = 'copiar texto', 2000);
+};
+document.getElementById('btn-share').onclick = async ()=>{
+  const texto = buildSummary(15);
+  if(navigator.share){
+    try{ await navigator.share({title:'Diário das emoções', text:texto}); }catch(e){}
+  } else {
+    download(`diario-emocoes-${todayStr()}.txt`, texto, 'text/plain');
+  }
+};
+document.getElementById('btn-backup').onclick = doBackup;
+document.getElementById('btn-restore').onclick = ()=>document.getElementById('file-input').click();
+document.getElementById('file-input').onchange = e=>{ if(e.target.files[0]) doRestore(e.target.files[0]); e.target.value=''; };
+
+/* ---------- Instalação e funcionamento offline ---------- */
+
+// Registra o service worker: é ele que guarda o app no aparelho para abrir sem internet.
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw.js').catch(()=>{
+      // Sem service worker o app ainda funciona; apenas precisa de rede na primeira abertura.
+    });
+  });
+}
+
+// Banner de instalação: o Android avisa quando o app pode ser instalado.
+let promptInstalacao = null;
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault();
+  promptInstalacao = e;
+  document.getElementById('install').classList.add('show');
+});
+document.getElementById('install-btn').onclick = async ()=>{
+  if(!promptInstalacao) return;
+  promptInstalacao.prompt();
+  await promptInstalacao.userChoice;
+  promptInstalacao = null;
+  document.getElementById('install').classList.remove('show');
+};
+window.addEventListener('appinstalled', ()=>{
+  document.getElementById('install').classList.remove('show');
+});
+
+// Pede ao navegador que trate os dados como persistentes (reduz limpeza automática).
+if(navigator.storage && navigator.storage.persist){
+  navigator.storage.persisted().then(ok=>{ if(!ok) navigator.storage.persist(); });
+}
+</script>
+</body>
+</html>
